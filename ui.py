@@ -73,35 +73,50 @@ class PlannerWidget(tk.Frame):
         date_str = datetime.date(year, month, day).strftime('%Y-%m-%d')
         self.open_task_detail(date_str)
 
-    def open_task_detail(self, date):
+    def open_task_detail(self, date_str):
         detail_win = tk.Toplevel(self.parent)
-        detail_win.title("Task Details for " + date)
+        detail_win.title("Task Details for " + date_str)
         detail_win.geometry("400x500")
 
-        # Setup layout for task input fields
         tk.Label(detail_win, text="Description:").pack()
         description_entry = tk.Entry(detail_win)
         description_entry.pack()
-        
+
         tk.Label(detail_win, text="Notes:").pack()
         notes_entry = tk.Entry(detail_win)
         notes_entry.pack()
-        
-    def fortmat_time(self, hour, minute, am_pm):
-        time_str = f"{hour}:{minute} {am_pm}"
-        return time_str
-        
-    def on_done_click():
-        formatted_time = format_time(hour_spin, minute_spin, am_pm_var)
-        self.save_task(description_entry.get(), notes_entry.get(), f"{date} {formatted_time}", detail_win)
 
-        done_button = tk.Button(detail_win, text="Done", command=on_done_click)
-        done_button.pack()
+        # Time entry
+        tk.Label(detail_win, text="Time:").pack()
 
-    def save_task(self, description, due_date, notes, detail_win):
-        self.task_manager.add_task(description, due_date, notes)
+        # Hour entry
+        hour_spin = tk.Spinbox(detail_win, from_=1, to=12, width=5, format='%02.0f')
+        hour_spin.pack(side=tk.LEFT, padx=5)
+
+        # Minute entry
+        minute_spin = tk.Spinbox(detail_win, from_=0, to=59, width=5, format='%02.0f')
+        minute_spin.pack(side=tk.LEFT, padx=5)
+
+        # AM/PM selection
+        am_pm_var = tk.StringVar(value="AM")
+        am_pm_selector = tk.OptionMenu(detail_win, am_pm_var, "AM", "PM")
+        am_pm_selector.pack(side=tk.LEFT, padx=5)
+
+        # time converted to format to the on_done_click method
+        formatted_time = self.format_time(hour_spin.get(), minute_spin.get(), am_pm_var.get())
+
+        # Done button configuration
+        done_button = tk.Button(detail_win, text="Done", command=lambda: self.on_done_click(description_entry, notes_entry, formatted_time, date_str, detail_win))
+        done_button.pack(pady=10)
+
+    def on_done_click(self, description_entry, notes_entry, formatted_time, date_str, detail_win):
+        due_date = f"{date_str} {formatted_time}"
+        self.save_task(description_entry.get(), notes_entry.get(), due_date)
         detail_win.destroy()
-        self.update_sidebar()
+
+    def save_task(self, description, notes, due_date):
+        self.task_manager.add_task(description, due_date, notes)
+        self.update_sidebar()  # Updates the sidebar afterward
 
     def update_sidebar(self):
         for widget in self.sidebar.winfo_children():
@@ -109,6 +124,9 @@ class PlannerWidget(tk.Frame):
         tasks = self.task_manager.get_tasks()
         for task in tasks:
             self.create_task_card(task)
+
+    def format_time(self, hour, minute, am_pm):
+        return f"{hour}:{minute:02} {am_pm}"
 
     def create_task_card(self, task):
         try:
@@ -122,7 +140,7 @@ class PlannerWidget(tk.Frame):
         task_frame.pack(fill=tk.X, padx=5, pady=5, expand=True)
 
         # Date and Month extracted from the due_date
-        due_date = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %H:%M:%S')
+        due_date = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %I:%M %p')
         day_month_frame = tk.Frame(task_frame)
         day_month_frame.pack(side=tk.LEFT, padx=10)
 
