@@ -114,11 +114,11 @@ class PlannerWidget(tk.Frame):
         detail_win.title("Reminder Info for " + date_str)
         detail_win.geometry("400x500")
 
-        tk.Label(detail_win, text="Description:").pack()
+        tk.Label(detail_win, text="Title:").pack()
         description_entry = tk.Entry(detail_win)
         description_entry.pack()
 
-        tk.Label(detail_win, text="Notes:").pack()
+        tk.Label(detail_win, text="Description:").pack()
         notes_entry = tk.Entry(detail_win)
         notes_entry.pack()
 
