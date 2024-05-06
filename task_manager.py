@@ -1,64 +1,58 @@
-import sqlite3
-from datetime import datetime
+import json
+from contextlib import contextmanager
+import datetime
+import os
 
 class TaskManager:
     def __init__(self):
-        self.db_file = 'taskplanner.db'
-        self.create_table()
+        self.json_file_path = 'tasks.json'
+        self.ensure_data_file()
 
-    def get_connection(self):
-        return sqlite3.connect(self.db_file)
+    def ensure_data_file(self):
+        """Ensure the JSON file exists and is properly initialized."""
+        if not os.path.exists(self.json_file_path):
+            with open(self.json_file_path, 'w') as file:
+                json.dump({'tasks': []}, file)
+    
+    def read_tasks(self):
+        with open(self.json_file_path, 'r') as file:
+            return json.load(file)['tasks']
 
-    def create_table(self):
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                description TEXT NOT NULL,
-                due_date TEXT,
-                notes TEXT,
-                completed BOOLEAN NOT NULL CHECK (completed IN (0, 1)) DEFAULT 0
-            )
-        ''')
-        conn.commit()
-        conn.close()
-
+    def write_tasks(self, tasks):
+        with open(self.json_file_path, 'w') as file:
+            json.dump({'tasks': tasks}, file)
+    
     def get_tasks(self):
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT id, description, due_date, notes, completed FROM tasks')
-        result = cursor.fetchall()
-        tasks = [{'id': row[0], 'description': row[1], 'due_date': row[2],
-                'notes': row[3], 'completed': bool(row[4])} for row in result]
-        conn.close()
-        return tasks
+        """Retrieve all tasks from the JSON data file."""
+        return self.read_tasks()
 
-    def add_task(self, description, due_date, notes):
-        try:
-            conn = sqlite3.connect(self.db_file)
-            cursor = conn.cursor()
-            cursor.execute('''INSERT INTO tasks (description, due_date, notes) VALUES (?, ?, ?)''', (description, due_date, notes))
-            conn.commit()
-        except sqlite3.Error as e:
-            print(f"An error occurred: {e.args[0]}")
-        finally:
-            conn.close()
-
-    def update_task(self, task_id, **kwargs):
-        updates = ', '.join([f"{k} = ?" for k in kwargs])
-        values = tuple(kwargs.values())
-        
-        cursor = self.conn.cursor()
-        cursor.execute(f'''
-            UPDATE tasks SET {updates} WHERE id = ?
-        ''', values + (task_id,))
-        self.conn.commit()
+    def add_task(self, description, notes, due_date):
+        tasks = self.read_tasks()
+        new_id = 1
+        if tasks:
+            new_id = max(task['id'] for task in tasks) + 1
+        tasks.append({
+            'id': new_id,
+            'description': description,
+            'due_date': due_date,
+            'notes': notes,
+            'completed': False
+        })
+        self.write_tasks(tasks)
+        print(f"Task added: {description} on {due_date} with notes {notes}")
 
     def delete_task(self, task_id):
-        cursor = self.conn.cursor()
-        cursor.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
-        self.conn.commit()
+        tasks = self.read_tasks()
+        tasks = [task for task in tasks if task['id'] != task_id]
+        self.write_tasks(tasks)
 
-    def __del__(self):
-        self.conn.close()
+    def update_task(self, task_id, **kwargs):
+        tasks = self.read_tasks()
+        for task in tasks:
+            if task['id'] == task_id:
+                for key, value in kwargs.items():
+                    task[key] = value
+        self.write_tasks(tasks)
+
+    def complete_task(self, task_id):
+        self.update_task(task_id, completed=True)
