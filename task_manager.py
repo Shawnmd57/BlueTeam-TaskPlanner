@@ -48,11 +48,18 @@ class TaskManager:
 
     def update_task(self, task_id, **kwargs):
         tasks = self.read_tasks()
+        updated = False
         for task in tasks:
             if task['id'] == task_id:
                 for key, value in kwargs.items():
                     task[key] = value
+                updated = True
         self.write_tasks(tasks)
+        if updated:
+            print("Task updated:", task_id)
+        else:
+            print("Task not found:", task_id)
+
 
     def complete_task(self, task_id):
         self.update_task(task_id, completed=True)

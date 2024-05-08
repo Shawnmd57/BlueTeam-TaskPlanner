@@ -30,14 +30,14 @@ class NotificationManager:
     def _parse_datetime(self, datetime_str):
         if datetime_str is None:
             return None
-        #Trys different formats
-        date_formats = ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']
+        # Make sure to include the format 'YYYY-MM-DD HH:MM'
+        date_formats = ['%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %I:%M %p']
         for fmt in date_formats:
             try:
                 return datetime.datetime.strptime(datetime_str, fmt)
             except ValueError:
-                continue  #Trys next format
-        #If no format succeeds
+                continue  # Try the next format
+        # If no format succeeds
         print(f"Warning: Failed to parse date '{datetime_str}'")
         return None
 

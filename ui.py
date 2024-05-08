@@ -109,67 +109,98 @@ class PlannerWidget(tk.Frame):
         date_str = datetime.date(year, month, day).strftime('%Y-%m-%d')
         self.open_task_detail(date_str)
 
-    def open_task_detail(self, date_str):
+    def open_task_detail(self, date_str, task_id=None):
         detail_win = tk.Toplevel(self.parent)
-        detail_win.title("Reminder Info for " + date_str)
+        detail_win.title("Task Details for " + date_str)
         detail_win.geometry("400x500")
 
+        # Fetch task details if editing
+        task = None
+        if task_id:
+            tasks = self.task_manager.get_tasks()
+            task = next((t for t in tasks if t['id'] == task_id), None)
+
+        # Setup widgets with existing task details if present
         tk.Label(detail_win, text="Title:").pack()
         description_entry = tk.Entry(detail_win)
         description_entry.pack()
+        description_entry.insert(0, task['description'] if task else '')
 
         tk.Label(detail_win, text="Description:").pack()
         notes_entry = tk.Entry(detail_win)
         notes_entry.pack()
+        notes_entry.insert(0, task['notes'] if task else '')
 
-        #Time label
+        # Time label and entry
         tk.Label(detail_win, text="Time:").pack()
-
-        #Time Entry Frame
         time_frame = tk.Frame(detail_win)
-        time_frame.pack(pady=5)  #Adds a little vertical spacing
+        time_frame.pack(pady=5)
 
-        #Scheduled Hour entry
+        # Preset the time if editing
+        due_date_time = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %H:%M') if task else datetime.datetime.now()
+        hour = due_date_time.strftime('%I')
+        minute = due_date_time.strftime('%M')
+        am_pm = due_date_time.strftime('%p')
+
         hour_spin = tk.Spinbox(time_frame, from_=1, to=12, width=5, format='%02.0f')
         hour_spin.pack(side=tk.LEFT, padx=5)
+        hour_spin.delete(0, tk.END)
+        hour_spin.insert(0, hour)
 
-        #Scheduled Minute entry
         minute_spin = tk.Spinbox(time_frame, from_=0, to=59, width=5, format='%02.0f')
         minute_spin.pack(side=tk.LEFT, padx=5)
+        minute_spin.delete(0, tk.END)
+        minute_spin.insert(0, minute)
 
-        #AM/PM selection
-        am_pm_var = tk.StringVar(value="AM")
+        am_pm_var = tk.StringVar(value=am_pm)
         am_pm_selector = tk.OptionMenu(time_frame, am_pm_var, "AM", "PM")
         am_pm_selector.pack(side=tk.LEFT, padx=5)
 
-        #Done Button
-        done_button = tk.Button(detail_win, text="Done", command=lambda: self.on_done_click(description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win))
+        done_button = tk.Button(detail_win, text="Done", command=lambda: self.on_done_click(description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win, task_id))
         done_button.pack(pady=10)
 
-    def on_done_click(self, description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win):
+
+    def on_done_click(self, description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win, task_id=None):
         description = description_entry.get()
         notes = notes_entry.get()
         hour = hour_spin.get()
         minute = minute_spin.get()
         am_pm = am_pm_var.get()
         formatted_time = self.format_time(hour, minute, am_pm)
-        due_date = f"{date_str} {formatted_time}"  #Combines date and time here
+        
+        # Splitting date_str to ensure it contains only the date part
+        date_only = date_str.split()[0]
+        due_date = f"{date_only} {formatted_time}"
 
-        self.task_manager.add_task(description, notes, due_date)
-        detail_win.destroy()
-        self.update_sidebar()
+        try:
+            datetime.datetime.strptime(due_date, '%Y-%m-%d %H:%M')
+            if task_id:
+                # Update existing task
+                self.task_manager.update_task(task_id, description=description, notes=notes, due_date=due_date, completed=False)
+            else:
+                # Add new task if no ID is provided
+                self.task_manager.add_task(description, notes, due_date)
+            detail_win.destroy()
+            self.update_sidebar()
+        except ValueError:
+            print(f"Error: Invalid date format for {due_date}. Expected format is 'YYYY-MM-DD HH:MM'")
+
+
 
     def save_task(self, description, notes, due_date):
         self.task_manager.add_task(description, due_date, notes)
         self.update_sidebar()  #Updates the sidebar afterward
 
     def update_sidebar(self):
-        #Clears existing task cards
+        # Clears existing task cards
         for widget in self.sidebar.winfo_children():
             widget.destroy()
 
-        #Creates new task cards
+        # Retrieves tasks and sorts them by due date
         tasks = self.task_manager.get_tasks()
+        tasks.sort(key=lambda x: datetime.datetime.strptime(x['due_date'], '%Y-%m-%d %H:%M'))
+
+        # Creates new task cards for sorted tasks
         for task in tasks:
             self.create_task_card(task)
 
@@ -181,12 +212,13 @@ class PlannerWidget(tk.Frame):
             hour += 12
         elif am_pm == 'AM' and hour == 12:
             hour = 0
-        return f"{hour:02}:{minute:02}:00"
+        return f"{hour:02}:{minute:02}"
+
 
     def create_task_card(self, task):
         #Parsing the due_date string to a datetime object
         try:
-            due_date = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %H:%M:%S')
+            due_date = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %H:%M')
             display_due_date = due_date.strftime('%Y-%m-%d %I:%M %p')  #Format for display in AM/PM
         except ValueError as ve:
             print("Error parsing date for task:", task)
@@ -224,7 +256,7 @@ class PlannerWidget(tk.Frame):
             back_button = tk.Button(options_win, text="Back", command=options_win.destroy)
             back_button.pack(fill=tk.X, padx=20, pady=5)
 
-            edit_button = tk.Button(options_win, text="Edit", command=lambda: [options_win.destroy(), self.open_task_detail(task['due_date'])])
+            edit_button = tk.Button(options_win, text="Edit", command=lambda: [options_win.destroy(), self.open_task_detail(task['due_date'], task['id'])])
             edit_button.pack(fill=tk.X, padx=20, pady=5)
 
             delete_button = tk.Button(options_win, text="Delete", command=lambda: [options_win.destroy(), self.confirm_delete(task)])
