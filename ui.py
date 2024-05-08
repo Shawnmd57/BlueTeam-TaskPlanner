@@ -1,6 +1,5 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-from tkinter import simpledialog, messagebox, ttk
 import calendar
 import datetime
 
@@ -30,7 +29,6 @@ class TaskPlannerUI:
             image_label.pack(padx=10, pady=10)
         except IOError as e:
             print(f"Error loading the image: {e}")
-
 
     def open_planner(self):
         planner_win = tk.Toplevel(self.root)
@@ -63,11 +61,11 @@ class PlannerWidget(tk.Frame):
         cal = calendar.Calendar(firstweekday=calendar.SUNDAY)
         month_days = cal.monthdayscalendar(year, month)
 
-        #Clear widgets
+        # Clear widgets
         for widget in self.calendar_area.winfo_children():
             widget.destroy()
 
-        #Month control with navigation
+        # Month control with navigation
         control_frame = tk.Frame(self.calendar_area)
         control_frame.grid(row=0, column=0, columnspan=7, sticky="ew")
 
@@ -80,13 +78,13 @@ class PlannerWidget(tk.Frame):
         right_button = tk.Button(control_frame, text=">", command=self.next_month)
         right_button.pack(side=tk.LEFT)
 
-        #Day headers
+        # Day headers
         weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
         for i, day in enumerate(weekdays):
             lbl = tk.Label(self.calendar_area, text=day[:3], font=('Arial', 10, 'bold'), bg='lightgrey')
             lbl.grid(row=1, column=i, sticky="ew")
 
-        #Day buttons
+        # Day buttons
         for i, week in enumerate(month_days):
             for j, day in enumerate(week):
                 if day != 0:
@@ -101,7 +99,7 @@ class PlannerWidget(tk.Frame):
     def configure_grid(self):
         for col in range(7):
             self.calendar_area.grid_columnconfigure(col, weight=1)
-        self.calendar_area.grid_rowconfigure(0, weight=1)    #For extra controls
+        self.calendar_area.grid_rowconfigure(0, weight=1)    # For extra controls
         for row in range(1, 8):
             self.calendar_area.grid_rowconfigure(row, weight=1)
 
@@ -176,7 +174,6 @@ class PlannerWidget(tk.Frame):
         done_button = tk.Button(detail_win, text="Done", command=lambda: self.on_done_click(description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win, task_id))
         done_button.pack(pady=10)
 
-
     def on_done_click(self, description_entry, notes_entry, hour_spin, minute_spin, am_pm_var, date_str, detail_win, task_id=None):
         description = description_entry.get()
         notes = notes_entry.get()
@@ -184,7 +181,7 @@ class PlannerWidget(tk.Frame):
         minute = minute_spin.get()
         am_pm = am_pm_var.get()
         formatted_time = self.format_time(hour, minute, am_pm)
-        
+
         # Splitting date_str to ensure it contains only the date part
         date_only = date_str.split()[0]
         due_date = f"{date_only} {formatted_time}"
@@ -202,11 +199,9 @@ class PlannerWidget(tk.Frame):
         except ValueError:
             print(f"Error: Invalid date format for {due_date}. Expected format is 'YYYY-MM-DD HH:MM'")
 
-
-
     def save_task(self, description, notes, due_date):
         self.task_manager.add_task(description, due_date, notes)
-        self.update_sidebar()  #Updates the sidebar afterward
+        self.update_sidebar()  # Updates the sidebar afterward
 
     def update_sidebar(self):
         # Clears existing task cards
@@ -223,9 +218,6 @@ class PlannerWidget(tk.Frame):
         else:
             self.display_no_task_image()
 
-    
-    from PIL import Image, ImageTk  # Make sure to import these at the beginning
-
     def display_no_task_image(self):
         if not self.no_task_image:
             try:
@@ -239,9 +231,6 @@ class PlannerWidget(tk.Frame):
         image_label.image = self.no_task_image  # Keep a reference!
         image_label.pack(pady=20)
 
-
-
-    #Ensures format_time formats correctly
     def format_time(self, hour, minute, am_pm):
         hour = int(hour)
         minute = int(minute)
@@ -250,7 +239,6 @@ class PlannerWidget(tk.Frame):
         elif am_pm == 'AM' and hour == 12:
             hour = 0
         return f"{hour:02}:{minute:02}"
-
 
     def create_task_card(self, task):
         # Parsing the due_date string to a datetime object
@@ -263,7 +251,7 @@ class PlannerWidget(tk.Frame):
 
         task_frame = tk.Frame(self.sidebar, bg='white', relief=tk.RIDGE, bd=1)
         task_frame.pack(fill=tk.X, padx=5, pady=5, expand=True)
-        
+
         # Bind click event to the entire task frame
         task_frame.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))
 
@@ -294,19 +282,19 @@ class PlannerWidget(tk.Frame):
         time_label.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Bind here too if needed
 
     def show_task_options(self, task):
-            options_win = tk.Toplevel(self.parent)
-            options_win.title("Reminder Options")
-            options_win.geometry("250x150")
+        options_win = tk.Toplevel(self.parent)
+        options_win.title("Reminder Options")
+        options_win.geometry("250x150")
 
-            back_button = tk.Button(options_win, text="Back", command=options_win.destroy)
-            back_button.pack(fill=tk.X, padx=20, pady=5)
+        back_button = tk.Button(options_win, text="Back", command=options_win.destroy)
+        back_button.pack(fill=tk.X, padx=20, pady=5)
 
-            edit_button = tk.Button(options_win, text="Edit", command=lambda: [options_win.destroy(), self.open_task_detail(task['due_date'], task['id'])])
-            edit_button.pack(fill=tk.X, padx=20, pady=5)
+        edit_button = tk.Button(options_win, text="Edit", command=lambda: [options_win.destroy(), self.open_task_detail(task['due_date'], task['id'])])
+        edit_button.pack(fill=tk.X, padx=20, pady=5)
 
-            delete_button = tk.Button(options_win, text="Delete", command=lambda: [options_win.destroy(), self.confirm_delete(task)])
-            delete_button.pack(fill=tk.X, padx=20, pady=5)
-        
+        delete_button = tk.Button(options_win, text="Delete", command=lambda: [options_win.destroy(), self.confirm_delete(task)])
+        delete_button.pack(fill=tk.X, padx=20, pady=5)
+
     def confirm_delete(self, task):
         confirm_win = tk.Toplevel(self.parent)
         confirm_win.title("Confirm Deletion")

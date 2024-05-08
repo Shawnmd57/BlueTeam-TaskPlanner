@@ -4,21 +4,21 @@ from task_manager import TaskManager
 from notification_manager import NotificationManager
 
 def main():
-    #Creates main window
+    # Creates the main window
     root = tk.Tk()
     root.title("Task Planner")
 
-    #Initializes task manager
+    # Initializes the task manager
     task_manager = TaskManager()
 
-    #Initializes / starts notification manager
+    # Initializes and starts the notification manager
     notification_manager = NotificationManager(task_manager, root)
     notification_manager.start_notification_service()
 
-    #Creates/shows UI
+    # Creates and shows the user interface
     app_ui = TaskPlannerUI(root, task_manager)
     
-    #Starts Tkinter main loop
+    # Starts the Tkinter main loop
     root.mainloop()
 
 if __name__ == "__main__":
