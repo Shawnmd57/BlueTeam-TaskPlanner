@@ -1,4 +1,5 @@
 import tkinter as tk
+from PIL import Image, ImageTk
 from tkinter import simpledialog, messagebox, ttk
 import calendar
 import datetime
@@ -13,8 +14,23 @@ class TaskPlannerUI:
     def setup_dashboard(self):
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(padx=10, pady=10)
+
+        # Load and display the image
+        self.load_dashboard_image()
+
         self.planner_button = tk.Button(self.main_frame, text="Planner", command=self.open_planner)
         self.planner_button.pack(fill=tk.X, padx=5, pady=2)
+
+    def load_dashboard_image(self):
+        try:
+            image = Image.open("TaskManager.png")
+            photo = ImageTk.PhotoImage(image)
+            image_label = tk.Label(self.main_frame, image=photo)
+            image_label.image = photo  # keep a reference!
+            image_label.pack(padx=10, pady=10)
+        except IOError as e:
+            print(f"Error loading the image: {e}")
+
 
     def open_planner(self):
         planner_win = tk.Toplevel(self.root)
@@ -27,6 +43,7 @@ class PlannerWidget(tk.Frame):
         super().__init__(parent)
         self.parent = parent
         self.task_manager = task_manager
+        self.no_task_image = None
         self.pack(fill=tk.BOTH, expand=True)
         self.current_year, self.current_month = datetime.datetime.now().year, datetime.datetime.now().month
         self.create_ui()
@@ -196,13 +213,33 @@ class PlannerWidget(tk.Frame):
         for widget in self.sidebar.winfo_children():
             widget.destroy()
 
-        # Retrieves tasks and sorts them by due date
+        # Creates new task cards or shows an image if no tasks
         tasks = self.task_manager.get_tasks()
-        tasks.sort(key=lambda x: datetime.datetime.strptime(x['due_date'], '%Y-%m-%d %H:%M'))
+        if tasks:
+            # Sort tasks by due date
+            sorted_tasks = sorted(tasks, key=lambda x: datetime.datetime.strptime(x['due_date'], '%Y-%m-%d %H:%M'))
+            for task in sorted_tasks:
+                self.create_task_card(task)
+        else:
+            self.display_no_task_image()
 
-        # Creates new task cards for sorted tasks
-        for task in tasks:
-            self.create_task_card(task)
+    
+    from PIL import Image, ImageTk  # Make sure to import these at the beginning
+
+    def display_no_task_image(self):
+        if not self.no_task_image:
+            try:
+                self.no_task_image = ImageTk.PhotoImage(Image.open("Tasks.png"))
+            except Exception as e:
+                print(f"Failed to load image: {e}")
+                return  # Exit if the image cannot be loaded
+
+        # Display the image
+        image_label = tk.Label(self.sidebar, image=self.no_task_image)
+        image_label.image = self.no_task_image  # Keep a reference!
+        image_label.pack(pady=20)
+
+
 
     #Ensures format_time formats correctly
     def format_time(self, hour, minute, am_pm):
@@ -216,20 +253,23 @@ class PlannerWidget(tk.Frame):
 
 
     def create_task_card(self, task):
-        #Parsing the due_date string to a datetime object
+        # Parsing the due_date string to a datetime object
         try:
             due_date = datetime.datetime.strptime(task['due_date'], '%Y-%m-%d %H:%M')
-            display_due_date = due_date.strftime('%Y-%m-%d %I:%M %p')  #Format for display in AM/PM
+            display_due_date = due_date.strftime('%Y-%m-%d %I:%M %p')  # Format for display in AM/PM
         except ValueError as ve:
             print("Error parsing date for task:", task)
-            return  #Optionally handle or return if the date format is invalid
+            return  # Optionally handle or return if the date format is invalid
 
         task_frame = tk.Frame(self.sidebar, bg='white', relief=tk.RIDGE, bd=1)
         task_frame.pack(fill=tk.X, padx=5, pady=5, expand=True)
-        task_frame.bind("<Button-1>", lambda e, task=task: self.show_task_options(task))
+        
+        # Bind click event to the entire task frame
+        task_frame.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))
 
         day_month_frame = tk.Frame(task_frame)
         day_month_frame.pack(side=tk.LEFT, padx=10)
+        day_month_frame.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Bind here too if needed
 
         day_label = tk.Label(day_month_frame, text=due_date.strftime('%d'), font=('Arial', 16, 'bold'), bg='white')
         day_label.pack()
@@ -238,15 +278,20 @@ class PlannerWidget(tk.Frame):
 
         text_frame = tk.Frame(task_frame, bg='white')
         text_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10)
+        text_frame.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Bind here too if needed
+
         title_label = tk.Label(text_frame, text=task['description'], font=('Arial', 12, 'bold'), bg='white', anchor='w')
         title_label.pack(fill=tk.X)
+        title_label.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Ensure all components propagate the click event
 
         if 'notes' in task:
             notes_label = tk.Label(text_frame, text=task['notes'], font=('Arial', 10), fg='gray', bg='white', anchor='w')
             notes_label.pack(fill=tk.X)
+            notes_label.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Bind here too if needed
 
         time_label = tk.Label(task_frame, text=due_date.strftime('%I:%M %p'), font=('Arial', 12), bg='white', anchor='e')
         time_label.pack(side=tk.RIGHT, padx=10)
+        time_label.bind("<Button-1>", lambda e, t=task: self.show_task_options(t))  # Bind here too if needed
 
     def show_task_options(self, task):
             options_win = tk.Toplevel(self.parent)
